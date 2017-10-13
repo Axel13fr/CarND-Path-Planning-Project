@@ -295,8 +295,7 @@ int main() {
 
             // Add points far ahead in Frenet coordinates
             constexpr int LANE_WIDTH = 4;
-            //const double target_lane = 2+LANE_WIDTH*car.lane_id;
-            const double target_lane = car_d;
+            const double target_lane = 2+LANE_WIDTH*car.lane_id;
             vector<double> next_wp0 = getXY(car_s+30,target_lane,
                                             map_waypoints_s,map_waypoints_x,map_waypoints_y);
             vector<double> next_wp1 = getXY(car_s+60,target_lane,
