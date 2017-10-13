@@ -8,6 +8,7 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
+#include "spline.h"
 
 using namespace std;
 
@@ -159,6 +160,54 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
 
 }
 
+class Car{
+
+public:
+    Car() = default;
+
+    double ref_x;
+    double ref_y;
+    double ref_yaw;
+
+    // Simulator starts the car on the middle lane (0 being the left lane)
+    uint lane_id = 1;
+    static constexpr double MAX_VELOCITY_MPH = 49.9;
+    static constexpr uint MAX_WAY_PTS = 50;
+    static constexpr double UPDATE_PERIOD_SECS = 0.02;
+};
+
+template <class T>
+void computeRefPoints(vector<double>& ptsx, vector<double>& ptsy, Car& car,
+                      const T& previous_path_x,const T& previous_path_y)
+{
+    // Number of points already given to the control
+    auto prev_size = previous_path_x.size();
+    if(prev_size < 2){
+        // Compute a point 1m behind the current car position
+        double prev_car_x = car.ref_x - cos(car.ref_yaw);
+        double prev_car_y = car.ref_y - sin(car.ref_yaw);
+
+        ptsx.push_back(prev_car_x);
+        ptsx.push_back(car.ref_x);
+
+        ptsy.push_back(prev_car_y);
+        ptsy.push_back(car.ref_y);
+    }else{
+        car.ref_x = previous_path_x[prev_size - 1];
+        car.ref_y = previous_path_y[prev_size - 1];
+
+        double prev_car_x =  previous_path_x[prev_size - 2];
+        double prev_car_y =  previous_path_y[prev_size - 2];
+        car.ref_yaw = atan2(car.ref_y - prev_car_y,car.ref_x - prev_car_x);
+
+        ptsx.push_back(prev_car_x);
+        ptsx.push_back(car.ref_x);
+
+        ptsy.push_back(prev_car_y);
+        ptsy.push_back(car.ref_y);
+    }
+}
+
 int main() {
   uWS::Hub h;
 
@@ -196,7 +245,9 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  Car car;
+
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&car](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -233,11 +284,77 @@ int main() {
           	// Sensor Fusion Data, a list of all other cars on the same side of the road.
           	auto sensor_fusion = j[1]["sensor_fusion"];
 
-          	json msgJson;
+            vector<double> ptsx;
+            vector<double> ptsy;
 
-          	vector<double> next_x_vals;
-          	vector<double> next_y_vals;
+            car.ref_x = car_x;
+            car.ref_y = car_y;
+            car.ref_yaw = deg2rad(car_yaw);
 
+            computeRefPoints(ptsx, ptsy, car, previous_path_x, previous_path_y);
+
+            // Add points far ahead in Frenet coordinates
+            constexpr int LANE_WIDTH = 4;
+            //const double target_lane = 2+LANE_WIDTH*car.lane_id;
+            const double target_lane = car_d;
+            vector<double> next_wp0 = getXY(car_s+30,target_lane,
+                                            map_waypoints_s,map_waypoints_x,map_waypoints_y);
+            vector<double> next_wp1 = getXY(car_s+60,target_lane,
+                                            map_waypoints_s,map_waypoints_x,map_waypoints_y);
+            ptsx.push_back(next_wp0[0]);
+            ptsy.push_back(next_wp0[1]);
+
+            ptsx.push_back(next_wp1[0]);
+            ptsy.push_back(next_wp1[1]);
+
+            // Convert points into local car coordinates to make spline computation easier
+            for(uint i = 0; i < ptsx.size() ; i++){
+
+                // Translation
+                double shift_x = ptsx[i] - car.ref_x;
+                double shift_y = ptsy[i] - car.ref_y;
+                // Rotation
+                ptsx[i] = shift_x*cos(-car.ref_yaw) - shift_y*sin(-car.ref_yaw);
+                ptsy[i] = shift_x*sin(-car.ref_yaw) + shift_y*cos(-car.ref_yaw);
+            }
+
+            tk::spline s;
+            s.set_points(ptsx,ptsy);
+
+            vector<double> next_x_vals;
+            vector<double> next_y_vals;
+            // Previous points from last time
+            for(uint i = 0; i < previous_path_x.size() ; i++){
+                next_x_vals.push_back(previous_path_x[i]);
+                next_y_vals.push_back(previous_path_y[i]);
+            }
+
+            double target_x = 30.0;
+            double target_y = s(target_x);
+            double target_dist = sqrt(target_x*target_x + target_y*target_y);
+
+            double x_shift = 0;
+            constexpr double MPH_TO_METERS_PER_SEC = 1/2.24;
+            const auto N = target_dist /(Car::UPDATE_PERIOD_SECS*Car::MAX_VELOCITY_MPH*MPH_TO_METERS_PER_SEC);
+            for(uint i = 0 ; i <= Car::MAX_WAY_PTS - previous_path_x.size() ; i++){
+                double x_point = x_shift + (target_x/N);
+                double y_point = s(x_point);
+
+                x_shift = x_point;
+
+                // Temp variables for rotation of x points
+                double x_ref = x_point;
+                double y_ref = y_point;
+
+                // Back to world coordinates : translate and rotate
+                x_point = car.ref_x + x_ref*cos(car.ref_yaw) - y_ref*sin(car.ref_yaw);
+                y_point = car.ref_y + x_ref*sin(car.ref_yaw) + y_ref*cos(car.ref_yaw);
+
+                next_x_vals.push_back(x_point);
+                next_y_vals.push_back(y_point);
+            }
+
+            json msgJson;
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	msgJson["next_x"] = next_x_vals;
