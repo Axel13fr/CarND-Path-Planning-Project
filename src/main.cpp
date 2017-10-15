@@ -9,6 +9,7 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
 #include "spline.h"
+#include "car.h"
 
 using namespace std;
 
@@ -160,21 +161,6 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
 
 }
 
-class Car{
-
-public:
-    Car() = default;
-
-    double ref_x;
-    double ref_y;
-    double ref_yaw;
-
-    // Simulator starts the car on the middle lane (0 being the left lane)
-    uint lane_id = 1;
-    static constexpr double MAX_VELOCITY_MPH = 49.9;
-    static constexpr uint MAX_WAY_PTS = 50;
-    static constexpr double UPDATE_PERIOD_SECS = 0.02;
-};
 
 template <class T>
 void computeRefPoints(vector<double>& ptsx, vector<double>& ptsy, Car& car,
@@ -282,7 +268,8 @@ int main() {
           	double end_path_d = j[1]["end_path_d"];
 
           	// Sensor Fusion Data, a list of all other cars on the same side of the road.
-          	auto sensor_fusion = j[1]["sensor_fusion"];
+            vector<vector<double>> sensor_fusion = j[1]["sensor_fusion"];
+            EnvCars other_cars(sensor_fusion);
 
             vector<double> ptsx;
             vector<double> ptsy;
@@ -290,6 +277,19 @@ int main() {
             car.ref_x = car_x;
             car.ref_y = car_y;
             car.ref_yaw = deg2rad(car_yaw);
+            car.ref_s = car_s;
+            car.ref_d = car_d;
+
+            Car closest_car;
+            if(other_cars.getFrontClosestSameLaneCar(car,closest_car)){
+                if(closest_car.ref_speed < car.ref_speed and car.tooClose(closest_car)){
+                    car.ref_speed = closest_car.ref_speed - 1;
+                }else{
+                    car.ref_speed = Car::MAX_VELOCITY_MPH;
+                }
+            }else{
+                car.ref_speed = Car::MAX_VELOCITY_MPH;
+            }
 
             computeRefPoints(ptsx, ptsy, car, previous_path_x, previous_path_y);
 
@@ -334,7 +334,7 @@ int main() {
 
             double x_shift = 0;
             constexpr double MPH_TO_METERS_PER_SEC = 1/2.24;
-            const auto N = target_dist /(Car::UPDATE_PERIOD_SECS*Car::MAX_VELOCITY_MPH*MPH_TO_METERS_PER_SEC);
+            const auto N = target_dist /(Car::UPDATE_PERIOD_SECS*car.ref_speed*MPH_TO_METERS_PER_SEC);
             for(uint i = 0 ; i <= Car::MAX_WAY_PTS - previous_path_x.size() ; i++){
                 double x_point = x_shift + (target_x/N);
                 double y_point = s(x_point);
