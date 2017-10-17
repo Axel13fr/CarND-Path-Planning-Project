@@ -283,15 +283,26 @@ int main() {
             Car closest_car;
             if(other_cars.getFrontClosestSameLaneCar(car,closest_car)){
                 if(closest_car.ref_speed < car.ref_speed and car.tooClose(closest_car)){
-                    car.setTarget_speed(closest_car.ref_speed - 1,car_speed);
+                    car.setTarget_speed(closest_car.ref_speed,car_speed);
+                    car.setState(Car::CAR_FOLLOWING);
                 }else if(car.farEnough(closest_car)){
+                    car.setState(Car::DRIVING);
                     car.setTarget_speed(Car::MAX_VELOCITY_MPH,car_speed);
                 }else{
                     // Car is is already doing something
                 }
             }else{
+                car.setState(Car::DRIVING);
                 car.setTarget_speed(Car::MAX_VELOCITY_MPH,car_speed);
             }
+
+            if(car.state == Car::CAR_FOLLOWING){
+                // Let's try to overtake
+                car.tryOvertake(other_cars);
+            }else{
+                // No need to overtake
+            }
+
 
             computeRefPoints(ptsx, ptsy, car, previous_path_x, previous_path_y);
 

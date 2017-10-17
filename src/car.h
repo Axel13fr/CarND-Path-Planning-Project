@@ -5,10 +5,13 @@
 #include <math.h>
 #include <iostream>
 
+class EnvCars;
+
 class Car{
 
 public:
     Car():
+        state(DRIVING),
         ref_speed(0),
         lane_id(1), // Ego Car starts in the middle lane
         speed_cnt(1)
@@ -34,10 +37,20 @@ public:
         }
     }
 
+    enum STATE_E{
+        DRIVING = 0,
+        CAR_FOLLOWING,
+        OVERTAKING
+    }state;
+
     bool tooClose(const Car& other_car);
     bool farEnough(const Car &other_car);
+    bool tryOvertake(const EnvCars& other_cars);
+    bool canOvertakeOnLane(const EnvCars& other_cars,uint8_t lane_id);
+
     double getSpeed_setpoint();
     void setTarget_speed(double new_speed, double current_speed);
+    void setState(const STATE_E& value);
 
     double ref_x;
     double ref_y;
@@ -69,8 +82,13 @@ public:
         }
     }
 
-    bool getFrontClosestSameLaneCar(const Car ref_car,Car& ret_car){
+    bool getFrontClosestSameLaneCar(const Car ref_car,Car& ret_car) const{
         auto lane = ref_car.lane_id;
+        return getFrontClosestCarInLane(ref_car,lane,ret_car);
+    }
+
+    bool getFrontClosestCarInLane(const Car ref_car,const uint8_t lane_id, Car& ret_car) const{
+        auto lane = lane_id;
         auto s = ref_car.ref_s;
         auto found = false;
         ret_car.ref_s = 10E10;
@@ -79,6 +97,25 @@ public:
             if(lane == car.lane_id and s < car.ref_s){
                 // Closer than previously found car
                 if(car.ref_s < ret_car.ref_s){
+                    ret_car = car;
+                    found = true;
+                }
+            }
+        }
+
+        return found;
+    }
+
+    bool getRearClosestCarInLane(const Car ref_car,const uint8_t lane_id, Car& ret_car) const{
+        auto lane = lane_id;
+        auto s = ref_car.ref_s;
+        auto found = false;
+        ret_car.ref_s = 0;
+        for(auto& car : other_cars){
+            // Same lane and at the rear
+            if(lane == car.lane_id and s > car.ref_s){
+                // Closer than previously found car
+                if(car.ref_s > ret_car.ref_s){
                     ret_car = car;
                     found = true;
                 }
