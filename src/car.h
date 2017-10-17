@@ -9,8 +9,9 @@ class Car{
 
 public:
     Car():
-        ref_speed(MAX_VELOCITY_MPH),
-        lane_id(1) // Ego Car starts in the middle lane
+        ref_speed(0),
+        lane_id(1), // Ego Car starts in the middle lane
+        speed_cnt(1)
     {
 
     }
@@ -33,10 +34,10 @@ public:
         }
     }
 
-    bool tooClose(const Car& other_car){
-        constexpr double MIN_SAFETY_DIST_M = 30.0;
-        return fabs(other_car.ref_s - this->ref_s) < MIN_SAFETY_DIST_M;
-    }
+    bool tooClose(const Car& other_car);
+    bool farEnough(const Car &other_car);
+    double getSpeed_setpoint();
+    void setTarget_speed(double new_speed, double current_speed);
 
     double ref_x;
     double ref_y;
@@ -47,6 +48,13 @@ public:
 
     // Simulator starts the car on the middle lane (0 being the left lane)
     uint8_t lane_id;
+    // To handle a progressive acceleration
+    double speed_setpoint;
+    double speed_delta;
+    double start_speed;
+    uint32_t speed_cnt;
+    static constexpr double SPEED_T_FACTOR = 50.0; // 0.02*200 = 4secs
+
     static constexpr double MAX_VELOCITY_MPH = 49.9;
     static constexpr uint16_t MAX_WAY_PTS = 50;
     static constexpr double UPDATE_PERIOD_SECS = 0.02;

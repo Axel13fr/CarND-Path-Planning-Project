@@ -283,12 +283,14 @@ int main() {
             Car closest_car;
             if(other_cars.getFrontClosestSameLaneCar(car,closest_car)){
                 if(closest_car.ref_speed < car.ref_speed and car.tooClose(closest_car)){
-                    car.ref_speed = closest_car.ref_speed - 1;
+                    car.setTarget_speed(closest_car.ref_speed - 1,car_speed);
+                }else if(car.farEnough(closest_car)){
+                    car.setTarget_speed(Car::MAX_VELOCITY_MPH,car_speed);
                 }else{
-                    car.ref_speed = Car::MAX_VELOCITY_MPH;
+                    // Car is is already doing something
                 }
             }else{
-                car.ref_speed = Car::MAX_VELOCITY_MPH;
+                car.setTarget_speed(Car::MAX_VELOCITY_MPH,car_speed);
             }
 
             computeRefPoints(ptsx, ptsy, car, previous_path_x, previous_path_y);
@@ -334,7 +336,7 @@ int main() {
 
             double x_shift = 0;
             constexpr double MPH_TO_METERS_PER_SEC = 1/2.24;
-            const auto N = target_dist /(Car::UPDATE_PERIOD_SECS*car.ref_speed*MPH_TO_METERS_PER_SEC);
+            const auto N = target_dist /(Car::UPDATE_PERIOD_SECS*car.getSpeed_setpoint()*MPH_TO_METERS_PER_SEC);
             for(uint i = 0 ; i <= Car::MAX_WAY_PTS - previous_path_x.size() ; i++){
                 double x_point = x_shift + (target_x/N);
                 double y_point = s(x_point);
