@@ -43,8 +43,9 @@ public:
         OVERTAKING
     }state;
 
-    bool tooClose(const Car& other_car);
+    bool tooClose(const Car& other_car, const double min_dist_m = MIN_SAFETY_DIST_M);
     bool farEnough(const Car &other_car);
+    double getPlanningDistance();
     bool tryOvertake(const EnvCars& other_cars);
     bool canOvertakeOnLane(const EnvCars& other_cars,uint8_t lane_id);
 
@@ -72,6 +73,7 @@ public:
     static constexpr uint16_t MAX_WAY_PTS = 50;
     static constexpr double UPDATE_PERIOD_SECS = 0.02;
     static constexpr int LANE_WIDTH_M = 4;
+    static constexpr double MIN_SAFETY_DIST_M = 30.0;
 };
 
 class EnvCars{

@@ -2,14 +2,31 @@
 #include "cassert"
 
 
-bool Car::tooClose(const Car &other_car){
-    constexpr double MIN_SAFETY_DIST_M = 30.0;
-    return fabs(other_car.ref_s - this->ref_s) < MIN_SAFETY_DIST_M;
+bool Car::tooClose(const Car &other_car,const double min_dist_m){
+    return fabs(other_car.ref_s - this->ref_s) < min_dist_m;
 }
 
 bool Car::farEnough(const Car &other_car){
     constexpr double MIN_ACCELERATE_DIST_M = 20.0;
     return fabs(other_car.ref_s - this->ref_s) > MIN_ACCELERATE_DIST_M;
+}
+
+double Car::getPlanningDistance()
+{
+    double distance = 30;
+    switch (state) {
+    case DRIVING:
+        distance = 30;
+        break;
+    case OVERTAKING:
+        // Get a smoother trajectory for overtaking !
+        distance = 50;
+        break;
+    case CAR_FOLLOWING:
+        distance = 30;
+        break;
+    }
+    return distance;
 }
 
 bool Car::tryOvertake(const EnvCars& other_cars)
@@ -47,10 +64,11 @@ bool Car::canOvertakeOnLane(const EnvCars &other_cars, uint8_t lane_id)
 {
     Car frontClosest;
     Car rearClosest;
+    constexpr auto MIN_REAR_SAFETY_DIST = 10.0;
     auto car_in_front = other_cars.getFrontClosestCarInLane(*this,lane_id,frontClosest);
     auto car_in_rear = other_cars.getRearClosestCarInLane(*this,lane_id,rearClosest);
     if(car_in_front and car_in_rear){
-        if(not this->tooClose(frontClosest) and not this->tooClose(rearClosest)){
+        if(not this->tooClose(frontClosest) and not this->tooClose(rearClosest,MIN_REAR_SAFETY_DIST)){
             return true;
         }else{
             return false;
@@ -62,7 +80,7 @@ bool Car::canOvertakeOnLane(const EnvCars &other_cars, uint8_t lane_id)
             return false;
         }
     }else if(car_in_rear){
-        if(not this->tooClose(rearClosest)){
+        if(not this->tooClose(rearClosest,MIN_REAR_SAFETY_DIST)){
             return true;
         }else{
             return false;
@@ -106,7 +124,7 @@ void Car::setState(const Car::STATE_E &value)
         case DRIVING:
             cout << "New State: driving" << endl;
             break;
-       case OVERTAKING:
+        case OVERTAKING:
             cout << "New State: overtaking" << endl;
             break;
         case CAR_FOLLOWING:

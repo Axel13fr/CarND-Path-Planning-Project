@@ -8,8 +8,8 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
-#include "spline.h"
 #include "car.h"
+#include "trajecgenerator.h"
 
 using namespace std;
 
@@ -133,66 +133,7 @@ vector<double> getFrenet(double x, double y, double theta, const vector<double> 
 
 }
 
-// Transform from Frenet s,d coordinates to Cartesian x,y
-vector<double> getXY(double s, double d, const vector<double> &maps_s, const vector<double> &maps_x, const vector<double> &maps_y)
-{
-	int prev_wp = -1;
 
-	while(s > maps_s[prev_wp+1] && (prev_wp < (int)(maps_s.size()-1) ))
-	{
-		prev_wp++;
-	}
-
-	int wp2 = (prev_wp+1)%maps_x.size();
-
-	double heading = atan2((maps_y[wp2]-maps_y[prev_wp]),(maps_x[wp2]-maps_x[prev_wp]));
-	// the x,y,s along the segment
-	double seg_s = (s-maps_s[prev_wp]);
-
-	double seg_x = maps_x[prev_wp]+seg_s*cos(heading);
-	double seg_y = maps_y[prev_wp]+seg_s*sin(heading);
-
-	double perp_heading = heading-pi()/2;
-
-	double x = seg_x + d*cos(perp_heading);
-	double y = seg_y + d*sin(perp_heading);
-
-	return {x,y};
-
-}
-
-
-template <class T>
-void computeRefPoints(vector<double>& ptsx, vector<double>& ptsy, Car& car,
-                      const T& previous_path_x,const T& previous_path_y)
-{
-    // Number of points already given to the control
-    auto prev_size = previous_path_x.size();
-    if(prev_size < 2){
-        // Compute a point 1m behind the current car position
-        double prev_car_x = car.ref_x - cos(car.ref_yaw);
-        double prev_car_y = car.ref_y - sin(car.ref_yaw);
-
-        ptsx.push_back(prev_car_x);
-        ptsx.push_back(car.ref_x);
-
-        ptsy.push_back(prev_car_y);
-        ptsy.push_back(car.ref_y);
-    }else{
-        car.ref_x = previous_path_x[prev_size - 1];
-        car.ref_y = previous_path_y[prev_size - 1];
-
-        double prev_car_x =  previous_path_x[prev_size - 2];
-        double prev_car_y =  previous_path_y[prev_size - 2];
-        car.ref_yaw = atan2(car.ref_y - prev_car_y,car.ref_x - prev_car_x);
-
-        ptsx.push_back(prev_car_x);
-        ptsx.push_back(car.ref_x);
-
-        ptsy.push_back(prev_car_y);
-        ptsy.push_back(car.ref_y);
-    }
-}
 
 int main() {
   uWS::Hub h;
@@ -286,6 +227,7 @@ int main() {
                     car.setTarget_speed(closest_car.ref_speed,car_speed);
                     car.setState(Car::CAR_FOLLOWING);
                 }else if(car.farEnough(closest_car)){
+                    // There is a car in front but far enough
                     car.setState(Car::DRIVING);
                     car.setTarget_speed(Car::MAX_VELOCITY_MPH,car_speed);
                 }else{
@@ -304,15 +246,20 @@ int main() {
             }
 
 
-            computeRefPoints(ptsx, ptsy, car, previous_path_x, previous_path_y);
+            vector<double> next_x_vals;
+            vector<double> next_y_vals;
+
+            TrajecGenerator::computeRefPoints(ptsx, ptsy, car, previous_path_x, previous_path_y);
 
             // Add points far ahead in Frenet coordinates
             constexpr int LANE_WIDTH = 4;
             const double target_lane = 2+LANE_WIDTH*car.lane_id;
-            vector<double> next_wp0 = getXY(car_s+30,target_lane,
+            const auto dist = car.getPlanningDistance();
+            vector<double> next_wp0 = TrajecGenerator::getXY(car_s+dist,target_lane,
                                             map_waypoints_s,map_waypoints_x,map_waypoints_y);
-            vector<double> next_wp1 = getXY(car_s+60,target_lane,
+            vector<double> next_wp1 = TrajecGenerator::getXY(car_s+2*dist,target_lane,
                                             map_waypoints_s,map_waypoints_x,map_waypoints_y);
+
             ptsx.push_back(next_wp0[0]);
             ptsy.push_back(next_wp0[1]);
 
@@ -330,41 +277,7 @@ int main() {
                 ptsy[i] = shift_x*sin(-car.ref_yaw) + shift_y*cos(-car.ref_yaw);
             }
 
-            tk::spline s;
-            s.set_points(ptsx,ptsy);
-
-            vector<double> next_x_vals;
-            vector<double> next_y_vals;
-            // Previous points from last time
-            for(uint i = 0; i < previous_path_x.size() ; i++){
-                next_x_vals.push_back(previous_path_x[i]);
-                next_y_vals.push_back(previous_path_y[i]);
-            }
-
-            double target_x = 30.0;
-            double target_y = s(target_x);
-            double target_dist = sqrt(target_x*target_x + target_y*target_y);
-
-            double x_shift = 0;
-            constexpr double MPH_TO_METERS_PER_SEC = 1/2.24;
-            const auto N = target_dist /(Car::UPDATE_PERIOD_SECS*car.getSpeed_setpoint()*MPH_TO_METERS_PER_SEC);
-            for(uint i = 0 ; i <= Car::MAX_WAY_PTS - previous_path_x.size() ; i++){
-                double x_point = x_shift + (target_x/N);
-                double y_point = s(x_point);
-
-                x_shift = x_point;
-
-                // Temp variables for rotation of x points
-                double x_ref = x_point;
-                double y_ref = y_point;
-
-                // Back to world coordinates : translate and rotate
-                x_point = car.ref_x + x_ref*cos(car.ref_yaw) - y_ref*sin(car.ref_yaw);
-                y_point = car.ref_y + x_ref*sin(car.ref_yaw) + y_ref*cos(car.ref_yaw);
-
-                next_x_vals.push_back(x_point);
-                next_y_vals.push_back(y_point);
-            }
+            TrajecGenerator::generateSplinePoints(previous_path_x,previous_path_y,car,ptsx,ptsy,next_x_vals,next_y_vals);
 
             json msgJson;
 
