@@ -221,31 +221,10 @@ int main() {
             car.ref_s = car_s;
             car.ref_d = car_d;
 
-            Car closest_car;
-            if(other_cars.getFrontClosestSameLaneCar(car,closest_car)){
-                if(closest_car.ref_speed < car.ref_speed and car.tooClose(closest_car)){
-                    car.setTarget_speed(closest_car.ref_speed,car_speed);
-                    car.setState(Car::CAR_FOLLOWING);
-                }else if(car.farEnough(closest_car)){
-                    // There is a car in front but far enough
-                    car.setState(Car::DRIVING);
-                    car.setTarget_speed(Car::MAX_VELOCITY_MPH,car_speed);
-                }else{
-                    // Car is is already doing something
-                }
-            }else{
-                car.setState(Car::DRIVING);
-                car.setTarget_speed(Car::MAX_VELOCITY_MPH,car_speed);
-            }
+            // **************************** STATE AND DECISIONS
+            car.updateState(other_cars,car_speed);
 
-            if(car.state == Car::CAR_FOLLOWING){
-                // Let's try to overtake
-                car.tryOvertake(other_cars);
-            }else{
-                // No need to overtake
-            }
-
-
+            // **************************** TRAJECTORY PLANNING
             vector<double> next_x_vals;
             vector<double> next_y_vals;
 

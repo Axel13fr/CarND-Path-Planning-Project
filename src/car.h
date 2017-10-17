@@ -15,9 +15,7 @@ public:
         ref_speed(0),
         lane_id(1), // Ego Car starts in the middle lane
         speed_cnt(1)
-    {
-
-    }
+    {}
 
     // Built from fusion data
     Car(const std::vector<double> other_car):
@@ -42,6 +40,8 @@ public:
         CAR_FOLLOWING,
         OVERTAKING
     }state;
+
+    void updateState(const EnvCars& other_cars, double car_speed);
 
     bool tooClose(const Car& other_car, const double min_dist_m = MIN_SAFETY_DIST_M);
     bool farEnough(const Car &other_car);
@@ -74,6 +74,9 @@ public:
     static constexpr double UPDATE_PERIOD_SECS = 0.02;
     static constexpr int LANE_WIDTH_M = 4;
     static constexpr double MIN_SAFETY_DIST_M = 30.0;
+private:
+    bool shouldFollow(const EnvCars& other_cars,double& front_car_speed);
+    bool shouldDrive(const EnvCars& other_cars);
 };
 
 class EnvCars{

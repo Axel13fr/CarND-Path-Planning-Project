@@ -73,7 +73,7 @@ public:
         }
     }
 
-    static void generateSplinePoints(const vector<double> previous_path_x, const vector<double>& previous_path_y,
+    static void generateSplinePoints(const vector<double>& previous_path_x, const vector<double>& previous_path_y,
                               Car& car,
                               const vector<double>& ptsx,const vector<double>& ptsy,
                               vector<double>& next_x_vals, vector<double>& next_y_vals)

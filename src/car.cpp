@@ -2,6 +2,56 @@
 #include "cassert"
 
 
+bool Car::shouldFollow(const EnvCars& other_cars, double& front_car_speed)
+{
+    Car closest_car;
+    auto ret = other_cars.getFrontClosestSameLaneCar(*this,closest_car)
+            and (closest_car.ref_speed <this->ref_speed)
+            and this->tooClose(closest_car);
+    if(ret){
+        front_car_speed = closest_car.ref_speed;
+    }
+
+    return ret;
+}
+
+bool Car::shouldDrive(const EnvCars& other_cars)
+{
+    Car closest_car;
+    return other_cars.getFrontClosestSameLaneCar(*this,closest_car)
+            and this->farEnough(closest_car);
+}
+
+void Car::updateState(const EnvCars& other_cars,double car_speed)
+{
+
+    auto new_state = state;
+    double new_speed = Car::MAX_VELOCITY_MPH;
+    switch (state) {
+    case DRIVING:
+        if(shouldFollow(other_cars,new_speed)){
+            new_state = CAR_FOLLOWING;
+        }
+        break;
+    case CAR_FOLLOWING:
+        if(shouldDrive(other_cars)){
+            new_state = DRIVING;
+        }else if(tryOvertake(other_cars)){
+            new_state = OVERTAKING;
+        }
+        break;
+    case OVERTAKING:
+        const double target_lane = 2+LANE_WIDTH_M*this->lane_id;
+        if(fabs(ref_d - target_lane) < 0.2){
+            new_state = DRIVING;
+        }
+        break;
+    }
+
+    setState(new_state);
+    setTarget_speed(new_speed,car_speed);
+}
+
 bool Car::tooClose(const Car &other_car,const double min_dist_m){
     return fabs(other_car.ref_s - this->ref_s) < min_dist_m;
 }
@@ -35,23 +85,19 @@ bool Car::tryOvertake(const EnvCars& other_cars)
     // Let's try to overtake
     if(lane_id == 2){
         if(canOvertakeOnLane(other_cars,1)){
-            this->setState(Car::OVERTAKING);
             this->lane_id = 1;
             canOvertake = true;
         }
     }else if (lane_id == 1){
         if(canOvertakeOnLane(other_cars,0)){
-            this->setState(Car::OVERTAKING);
             this->lane_id = 0;
             canOvertake = true;
         }else if(canOvertakeOnLane(other_cars,2)){
-            this->setState(Car::OVERTAKING);
             this->lane_id = 2;
             canOvertake = true;
         }
     }else{ // lane id = 0
         if(canOvertakeOnLane(other_cars,1)){
-            this->setState(Car::OVERTAKING);
             this->lane_id = 1;
             canOvertake = true;
         }
