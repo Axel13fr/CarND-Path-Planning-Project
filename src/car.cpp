@@ -57,7 +57,7 @@ bool Car::tooClose(const Car &other_car,const double min_dist_m){
 }
 
 bool Car::farEnough(const Car &other_car){
-    constexpr double MIN_ACCELERATE_DIST_M = 20.0;
+    constexpr double MIN_ACCELERATE_DIST_M = 50.0;
     return fabs(other_car.ref_s - this->ref_s) > MIN_ACCELERATE_DIST_M;
 }
 
