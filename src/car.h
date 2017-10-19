@@ -70,6 +70,7 @@ public:
     static constexpr double SPEED_T_FACTOR = 50.0; // 0.02*200 = 4secs
 
     static constexpr double MAX_VELOCITY_MPH = 49.9;
+    static constexpr double SAFE_OVERTAKING_SPEED_MPH = 40.0;
     static constexpr uint16_t MAX_WAY_PTS = 50;
     static constexpr double UPDATE_PERIOD_SECS = 0.02;
     static constexpr int LANE_WIDTH_M = 4;

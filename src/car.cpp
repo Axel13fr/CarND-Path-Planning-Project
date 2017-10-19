@@ -18,7 +18,7 @@ bool Car::shouldFollow(const EnvCars& other_cars, double& front_car_speed)
 {
     Car closest_car;
     auto is_car_in_front = other_cars.getFrontClosestSameLaneCar(*this,closest_car);;
-    auto ret = is_car_in_front and (closest_car.ref_speed <this->ref_speed)
+    auto ret = is_car_in_front and (closest_car.ref_speed < this->ref_speed)
             and this->tooClose(closest_car);
     if(ret){
         front_car_speed = closest_car.ref_speed;
@@ -57,6 +57,8 @@ void Car::updateState(const EnvCars& other_cars,double car_speed)
         break;
     case OVERTAKING:
         const double target_lane = 2+LANE_WIDTH_M*this->lane_id;
+        new_speed = Car::SAFE_OVERTAKING_SPEED_MPH;
+        // Check if vehicle has reached the new line
         if(fabs(ref_d - target_lane) < 0.2){
             new_state = DRIVING;
         }
