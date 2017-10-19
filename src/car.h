@@ -77,6 +77,7 @@ public:
 private:
     bool shouldFollow(const EnvCars& other_cars,double& front_car_speed);
     bool shouldDrive(const EnvCars& other_cars);
+    bool getFrontCarSpeed(const EnvCars& other_cars, double& front_car_speed);
 };
 
 class EnvCars{

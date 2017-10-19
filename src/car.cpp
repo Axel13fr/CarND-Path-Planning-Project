@@ -2,11 +2,23 @@
 #include "cassert"
 
 
+bool Car::getFrontCarSpeed(const EnvCars& other_cars, double& front_car_speed)
+{
+    Car closest_car;
+    auto is_car_in_front = other_cars.getFrontClosestSameLaneCar(*this,closest_car);
+    // In any cases, if a car is in the front, return its speed
+    if(is_car_in_front){
+        front_car_speed = closest_car.ref_speed;
+    }
+
+    return is_car_in_front;
+}
+
 bool Car::shouldFollow(const EnvCars& other_cars, double& front_car_speed)
 {
     Car closest_car;
-    auto ret = other_cars.getFrontClosestSameLaneCar(*this,closest_car)
-            and (closest_car.ref_speed <this->ref_speed)
+    auto is_car_in_front = other_cars.getFrontClosestSameLaneCar(*this,closest_car);;
+    auto ret = is_car_in_front and (closest_car.ref_speed <this->ref_speed)
             and this->tooClose(closest_car);
     if(ret){
         front_car_speed = closest_car.ref_speed;
@@ -34,6 +46,9 @@ void Car::updateState(const EnvCars& other_cars,double car_speed)
         }
         break;
     case CAR_FOLLOWING:
+        // Find closest car and get possible updated speed
+        getFrontCarSpeed(other_cars,new_speed);
+
         if(shouldDrive(other_cars)){
             new_state = DRIVING;
         }else if(tryOvertake(other_cars)){
@@ -150,7 +165,7 @@ double Car::getSpeed_setpoint()
 void Car::setTarget_speed(double new_speed,double current_speed)
 {
     // Change target speed only if different
-    if(fabs(new_speed - ref_speed) > 0.01){
+    if(fabs(new_speed - ref_speed) > 0.2){
         speed_cnt = 1;
         ref_speed = new_speed;
         start_speed = current_speed;
