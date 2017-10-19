@@ -21,7 +21,8 @@ bool Car::shouldFollow(const EnvCars& other_cars, double& front_car_speed)
     auto ret = is_car_in_front and (closest_car.ref_speed < this->ref_speed)
             and this->tooClose(closest_car);
     if(ret){
-        front_car_speed = closest_car.ref_speed;
+        // Keep a maring to avoid any possible collision
+        front_car_speed = closest_car.ref_speed - 0.5;
     }
 
     return ret;
@@ -167,7 +168,7 @@ double Car::getSpeed_setpoint()
 void Car::setTarget_speed(double new_speed,double current_speed)
 {
     // Change target speed only if different
-    if(fabs(new_speed - ref_speed) > 0.2){
+    if(fabs(new_speed - ref_speed) > 1.0){
         speed_cnt = 1;
         ref_speed = new_speed;
         start_speed = current_speed;
