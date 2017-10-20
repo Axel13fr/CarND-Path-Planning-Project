@@ -135,6 +135,19 @@ vector<double> getFrenet(double x, double y, double theta, const vector<double> 
 
 
 
+void worldToLocalCoordinates(vector<double>& ptsx, vector<double>& ptsy, const Car& car)
+{
+    for(uint i = 0; i < ptsx.size() ; i++){
+
+        // Translation
+        double shift_x = ptsx[i] - car.ref_x;
+        double shift_y = ptsy[i] - car.ref_y;
+        // Rotation
+        ptsx[i] = shift_x*cos(-car.ref_yaw) - shift_y*sin(-car.ref_yaw);
+        ptsy[i] = shift_x*sin(-car.ref_yaw) + shift_y*cos(-car.ref_yaw);
+    }
+}
+
 int main() {
   uWS::Hub h;
 
@@ -246,15 +259,7 @@ int main() {
             ptsy.push_back(next_wp1[1]);
 
             // Convert points into local car coordinates to make spline computation easier
-            for(uint i = 0; i < ptsx.size() ; i++){
-
-                // Translation
-                double shift_x = ptsx[i] - car.ref_x;
-                double shift_y = ptsy[i] - car.ref_y;
-                // Rotation
-                ptsx[i] = shift_x*cos(-car.ref_yaw) - shift_y*sin(-car.ref_yaw);
-                ptsy[i] = shift_x*sin(-car.ref_yaw) + shift_y*cos(-car.ref_yaw);
-            }
+            worldToLocalCoordinates(ptsx, ptsy, car);
 
             TrajecGenerator::generateSplinePoints(previous_path_x,previous_path_y,car,ptsx,ptsy,next_x_vals,next_y_vals);
 

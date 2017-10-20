@@ -74,7 +74,7 @@ public:
     static constexpr uint16_t MAX_WAY_PTS = 40;
     static constexpr double UPDATE_PERIOD_SECS = 0.02;
     static constexpr int LANE_WIDTH_M = 4;
-    static constexpr double MIN_SAFETY_DIST_M = 40.0;
+    static constexpr double MIN_SAFETY_DIST_M = 30.0;
 private:
     bool shouldFollow(const EnvCars& other_cars,double& front_car_speed);
     bool shouldDrive(const EnvCars& other_cars);
