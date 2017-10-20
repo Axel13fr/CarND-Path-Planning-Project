@@ -42,6 +42,12 @@ Here is how it goes:
 
 To combat all king of jerks, a few tweaks have been introduced including:
 - using a different distance to generate the far spaced reference points of the trajectory : 50/100m for lane change to give a smoother trajectory than other in other states where more reactivity is needed : 30/60m
-- smooth speed transition by applying an exponential law as follow : speed set_point = previous_speed + speed_delta*(1-exp(-t/T)). The speed given to the point interpolation gradually adds up on the previous speed so that for a change from 30 to 50mph, we add 30 + 5, 30 + 8, 30 + 10.... up to 30+20.
+- smooth speed transition by applying an exponential law as follow : 
+
+<p align="center">speed<sub>t+1</sub> = speed<sub>previous</sub> + speed<sub>delta</sub>*(1-exp<sup>(-t/T)</sup>) </p>
+
+<p align="center">*where T is adjusted to give enough reactivity while not causing any jerk.* </p>
+
+The speed given to the point interpolation gradually adds up on the previous speed so that for a change from 30 to 50mph, we add 30 + 5, 30 + 8, 30 + 10.... up to 30+20.
 
 
