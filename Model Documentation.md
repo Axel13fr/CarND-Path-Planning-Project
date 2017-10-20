@@ -46,7 +46,7 @@ To combat all king of jerks, a few tweaks have been introduced including:
 
 <p align="center">speed<sub>t+1</sub> = speed<sub>previous</sub> + speed<sub>delta</sub>*(1-exp<sup>(-t/T)</sup>) </p>
 
-<p align="center">*where T is adjusted to give enough reactivity while not causing any jerk.* </p>
+*where T is adjusted to give enough reactivity while not causing any jerk.*
 
 The speed given to the point interpolation gradually adds up on the previous speed so that for a change from 30 to 50mph, we add 30 + 5, 30 + 8, 30 + 10.... up to 30+20.
 
